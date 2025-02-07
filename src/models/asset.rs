@@ -1,39 +1,36 @@
-use crate::models::instrument::FinancialInstrument;
 use chrono::NaiveDate;
 
-#[derive(Clone, Debug)]
-pub struct Asset {
-    pub name: String,
-    pub initial_value: f32,
-    pub value_change_per_year: f32, // e.g., 0.05 for 5% per year (positive for growth, negative for depreciation)
-    pub acquisition_date: NaiveDate,
+use super::{Loan, RealEstate};
+
+pub trait AssetTrait {
+    fn value(&self, date: NaiveDate) -> f32;
+    fn name(&self) -> String;
 }
 
-impl FinancialInstrument for Asset {
-    fn value_on(&self, date: NaiveDate) -> f32 {
-        let years_elapsed = (date - self.acquisition_date).num_days() as f32 / 365.25;
-        // Compute the new value. For positive rate_of_change, the asset's value increases.
-        // For negative rate_of_change, the asset's value decreases.
-        let new_value = self.initial_value * (1.0 + self.value_change_per_year * years_elapsed);
-        new_value.max(0.0)
-    }
-
-    fn acquisition_date(&self) -> NaiveDate {
-        self.acquisition_date
-    }
-
-    fn name(&self) -> &str {
-        &self.name
-    }
+#[derive(Clone, Debug, PartialEq)]
+pub enum Asset {
+    RealEstate(RealEstate),
+    Loan(Loan),
 }
 
-impl Default for Asset {
-    fn default() -> Self {
-        Self {
-            name: "Asset".to_owned(),
-            initial_value: 0.0,
-            value_change_per_year: 0.0,
-            acquisition_date: chrono::Utc::now().date_naive(),
+impl AssetTrait for Asset {
+    fn value(&self, date: NaiveDate) -> f32 {
+        match self {
+            Asset::RealEstate(real_estate) => real_estate.value(date),
+            Asset::Loan(loan) => loan.value(date),
         }
     }
+
+    fn name(&self) -> String {
+        match self {
+            Asset::RealEstate(real_estate) => real_estate.name.clone(),
+            Asset::Loan(loan) => loan.name.clone(),
+        }
+    }
+}
+
+#[derive(PartialEq, Clone, Debug)]
+pub enum AssetType {
+    RealEstate,
+    Loan,
 }
