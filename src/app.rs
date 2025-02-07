@@ -1,109 +1,217 @@
-/// We derive Deserialize/Serialize so we can persist app state on shutdown.
-#[derive(serde::Deserialize, serde::Serialize)]
-#[serde(default)] // if we add new fields, give them default values when deserializing old state
-pub struct TemplateApp {
-    // Example stuff:
+// app.rs
+
+use crate::models::{Asset, Investment, Liability};
+use crate::plot_utils::create_line_for_instrument;
+use crate::{instrument, Portfolio};
+use chrono::{Datelike, NaiveDate, TimeZone, Utc};
+use eframe::egui;
+use egui_plot::{Legend, Line, Plot, PlotPoints};
+
+/// Enum for selecting the type of financial item to add.
+#[derive(PartialEq)]
+enum NewItemType {
+    Asset,
+    Liability,
+    Investment,
+}
+
+pub struct WealthTrackerApp {
     label: String,
-
-    #[serde(skip)] // This how you opt-out of serialization of a field
-    value: f32,
+    portfolio: Portfolio,
+    // New fields for adding a financial item:
+    new_item_type: NewItemType,
+    new_item_name: String,
+    new_item_initial_value: f32,
+    new_item_rate: f32,
+    new_item_year: i32,
+    new_item_month: u32,
+    new_item_day: u32,
 }
 
-impl Default for TemplateApp {
+impl Default for WealthTrackerApp {
     fn default() -> Self {
+        let mut portfolio = Portfolio::new();
+        // Create a sample asset for demonstration.
+        let asset = Asset {
+            name: "Car".to_owned(),
+            initial_value: 30000.0,
+            value_change_per_year: -1.15,
+            acquisition_date: Utc::now().date_naive(),
+        };
+        portfolio.add_instrument(Box::new(asset));
+
+        // Default acquisition date for new items: today.
+        let today = Utc::now().date_naive();
+
         Self {
-            // Example stuff:
-            label: "Hello World!".to_owned(),
-            value: 2.7,
+            label: "Wealth Tracker".to_owned(),
+            portfolio,
+            new_item_type: NewItemType::Asset,
+            new_item_name: "".to_owned(),
+            new_item_initial_value: 0.0,
+            new_item_rate: 0.0,
+            new_item_year: today.year(),
+            new_item_month: today.month(),
+            new_item_day: today.day(),
         }
     }
 }
 
-impl TemplateApp {
-    /// Called once before the first frame.
+impl WealthTrackerApp {
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
-        // This is also where you can customize the look and feel of egui using
-        // `cc.egui_ctx.set_visuals` and `cc.egui_ctx.set_fonts`.
-
-        // Load previous app state (if any).
-        // Note that you must enable the `persistence` feature for this to work.
-        if let Some(storage) = cc.storage {
-            return eframe::get_value(storage, eframe::APP_KEY).unwrap_or_default();
-        }
-
-        Default::default()
+        Self::default()
     }
 }
 
-impl eframe::App for TemplateApp {
-    /// Called by the frame work to save state before shutdown.
-    fn save(&mut self, storage: &mut dyn eframe::Storage) {
-        eframe::set_value(storage, eframe::APP_KEY, self);
-    }
-
-    /// Called each time the UI needs repainting, which may be many times per second.
+impl eframe::App for WealthTrackerApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        // Put your widgets into a `SidePanel`, `TopBottomPanel`, `CentralPanel`, `Window` or `Area`.
-        // For inspiration and more examples, go to https://emilk.github.io/egui
-
-        egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
-            // The top panel is often a good place for a menu bar:
-
-            egui::menu::bar(ui, |ui| {
-                // NOTE: no File->Quit on web pages!
-                let is_web = cfg!(target_arch = "wasm32");
-                if !is_web {
-                    ui.menu_button("File", |ui| {
-                        if ui.button("Quit").clicked() {
-                            ctx.send_viewport_cmd(egui::ViewportCommand::Close);
-                        }
-                    });
-                    ui.add_space(16.0);
-                }
-
-                egui::widgets::global_theme_preference_buttons(ui);
-            });
-        });
-
         egui::CentralPanel::default().show(ctx, |ui| {
-            // The central panel the region left after adding TopPanel's and SidePanel's
-            ui.heading("eframe template");
+            ui.heading(&self.label);
 
-            ui.horizontal(|ui| {
-                ui.label("Write something: ");
-                ui.text_edit_singleline(&mut self.label);
+            // Collapsible section for adding a new financial item.
+            ui.collapsing("Add New Financial Item", |ui| {
+                ui.horizontal(|ui| {
+                    ui.label("Type:");
+                    egui::ComboBox::from_id_source("new_item_type")
+                        .selected_text(match self.new_item_type {
+                            NewItemType::Asset => "Asset",
+                            NewItemType::Liability => "Liability",
+                            NewItemType::Investment => "Investment",
+                        })
+                        .show_ui(ui, |ui| {
+                            ui.selectable_value(
+                                &mut self.new_item_type,
+                                NewItemType::Asset,
+                                "Asset",
+                            );
+                            ui.selectable_value(
+                                &mut self.new_item_type,
+                                NewItemType::Liability,
+                                "Liability",
+                            );
+                            ui.selectable_value(
+                                &mut self.new_item_type,
+                                NewItemType::Investment,
+                                "Investment",
+                            );
+                        });
+                });
+
+                ui.horizontal(|ui| {
+                    ui.label("Name:");
+                    ui.text_edit_singleline(&mut self.new_item_name);
+                });
+
+                ui.horizontal(|ui| {
+                    ui.label("Initial Value:");
+                    ui.add(egui::DragValue::new(&mut self.new_item_initial_value));
+                });
+
+                ui.horizontal(|ui| {
+                    let rate_label = match self.new_item_type {
+                        NewItemType::Asset => "Yearly value rate of change:",
+                        NewItemType::Liability => "Interest Rate:",
+                        NewItemType::Investment => "Appreciation Rate:",
+                    };
+                    ui.label(rate_label);
+                    ui.add(egui::DragValue::new(&mut self.new_item_rate));
+                });
+
+                ui.horizontal(|ui| {
+                    ui.label("Acquisition Date:");
+                    ui.label("Year:");
+                    ui.add(egui::DragValue::new(&mut self.new_item_year));
+                    ui.label("Month:");
+                    ui.add(egui::DragValue::new(&mut self.new_item_month));
+                    ui.label("Day:");
+                    ui.add(egui::DragValue::new(&mut self.new_item_day));
+                });
+
+                if ui.button("Add Item").clicked() {
+                    if let Some(date) = NaiveDate::from_ymd_opt(
+                        self.new_item_year,
+                        self.new_item_month,
+                        self.new_item_day,
+                    ) {
+                        match self.new_item_type {
+                            NewItemType::Asset => {
+                                let asset = Asset {
+                                    name: self.new_item_name.clone(),
+                                    initial_value: self.new_item_initial_value,
+                                    value_change_per_year: self.new_item_rate,
+                                    acquisition_date: date,
+                                };
+                                self.portfolio.add_instrument(Box::new(asset));
+                            }
+                            NewItemType::Liability => {
+                                let liability = Liability {
+                                    name: self.new_item_name.clone(),
+                                    principal: self.new_item_initial_value,
+                                    interest_rate: self.new_item_rate,
+                                    acquisition_date: date,
+                                };
+                                self.portfolio.add_instrument(Box::new(liability));
+                            }
+                            NewItemType::Investment => {
+                                let investment = Investment {
+                                    name: self.new_item_name.clone(),
+                                    initial_value: self.new_item_initial_value,
+                                    appreciation_rate: self.new_item_rate,
+                                    acquisition_date: date,
+                                };
+                                self.portfolio.add_instrument(Box::new(investment));
+                            }
+                        }
+                        // Optionally, clear/reset the input fields after adding.
+                        self.new_item_name.clear();
+                        self.new_item_initial_value = 0.0;
+                        self.new_item_rate = 0.0;
+                    } else {
+                        ui.label("Invalid date entered!");
+                    }
+                }
             });
 
-            ui.add(egui::Slider::new(&mut self.value, 0.0..=10.0).text("value"));
-            if ui.button("Increment").clicked() {
-                self.value += 1.0;
-            }
+            let has_instruments = match self.portfolio.instruments.is_empty() {
+                true => {
+                    ui.label("No financial items added yet.");
+                    false
+                }
+                false => {
+                    ui.label("Financial Items:");
+                    true
+                }
+            };
 
-            ui.separator();
+            // Plot the portfolio value over time.
+            let start_date = NaiveDate::from_ymd_opt(2022, 1, 1).unwrap();
+            let end_date = NaiveDate::from_ymd_opt(2030, 1, 1).unwrap();
 
-            ui.add(egui::github_link_file!(
-                "https://github.com/emilk/eframe_template/blob/main/",
-                "Source code."
-            ));
-
-            ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
-                powered_by_egui_and_eframe(ui);
-                egui::warn_if_debug_build(ui);
-            });
+            Plot::new("wealth_over_time")
+                .legend(Legend::default())
+                .height(200.0)
+                .x_axis_formatter(|x, _range| {
+                    let timestamp = x.value as i64;
+                    let date = Utc.timestamp_opt(timestamp, 0).unwrap();
+                    date.format("%Y-%m-%d").to_string()
+                })
+                .show(ui, |plot_ui| {
+                    match has_instruments {
+                        true => {
+                            for instrument in self.portfolio.instruments.iter() {
+                                let line = create_line_for_instrument(
+                                    instrument.as_ref(),
+                                    start_date,
+                                    end_date,
+                                    1,
+                                );
+                                plot_ui.line(line);
+                            }
+                        }
+                        false => {}
+                    }
+                    // Add more lines
+                });
         });
     }
-}
-
-fn powered_by_egui_and_eframe(ui: &mut egui::Ui) {
-    ui.horizontal(|ui| {
-        ui.spacing_mut().item_spacing.x = 0.0;
-        ui.label("Powered by ");
-        ui.hyperlink_to("egui", "https://github.com/emilk/egui");
-        ui.label(" and ");
-        ui.hyperlink_to(
-            "eframe",
-            "https://github.com/emilk/egui/tree/master/crates/eframe",
-        );
-        ui.label(".");
-    });
 }
