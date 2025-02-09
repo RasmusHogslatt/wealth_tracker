@@ -1,7 +1,7 @@
 use crate::asset::{AssetTrait, AssetType};
 use crate::models::Asset;
 use crate::plot_utils::create_plot_line;
-use crate::{portfolio, Loan, Portfolio, RealEstate};
+use crate::{Loan, Portfolio, RealEstate};
 use chrono::{NaiveDate, TimeZone, Utc};
 use eframe::egui;
 use egui_plot::{Legend, Plot};
@@ -42,16 +42,16 @@ impl Default for WealthTrackerApp {
             value: 1000000.0,
             rate_per_year: 5.0,
             acquisition_date: today,
-            uuid: Uuid::new_v4(),
             should_delete: false,
+            ..Default::default()
         };
         let rental_property = RealEstate {
             name: "Rental Property".to_owned(),
             value: -500000.0,
             rate_per_year: 3.0,
             acquisition_date: today,
-            uuid: Uuid::new_v4(),
             should_delete: false,
+            ..Default::default()
         };
         let house_loan = Loan {
             name: "House Loan".to_owned(),
@@ -59,8 +59,8 @@ impl Default for WealthTrackerApp {
             rate_per_year: 7.0,
             acquisition_date: today,
             monthly_principal: 3000.0,
-            uuid: Uuid::new_v4(),
             should_delete: false,
+            ..Default::default()
         };
         portfolio.add_asset(Asset::RealEstate(primary_residence));
         portfolio.add_asset(Asset::RealEstate(rental_property));
@@ -89,10 +89,10 @@ impl eframe::App for WealthTrackerApp {
         eframe::set_value(storage, eframe::APP_KEY, self);
     }
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        const INTERVAL_DAYS: i64 = 1;
         egui::SidePanel::left("left").show(ctx, |ui| {
             ui.group(|ui| {
-                egui::ComboBox::from_label("Add new asset")
+                ui.heading("Add Assets");
+                egui::ComboBox::from_label("Select asset type")
                     .selected_text(format!("{:?}", self.selected_asset_type))
                     .show_ui(ui, |ui| {
                         ui.selectable_value(
@@ -117,20 +117,6 @@ impl eframe::App for WealthTrackerApp {
                 }
             });
             ui.separator();
-            ui.heading("Edit Assets");
-            let mut id_to_delete: Uuid = Uuid::nil();
-            for asset in &mut self.portfolio.assets {
-                let header_name = asset.name();
-                egui::CollapsingHeader::new(header_name)
-                    .id_salt(asset.uuid())
-                    .show(ui, |ui| {
-                        asset.ui_edit(ui);
-                        if asset.should_delete() {
-                            id_to_delete = asset.uuid();
-                        }
-                    });
-            }
-            self.portfolio.delete_asset(id_to_delete);
             ui.collapsing("Application settings", |ui| {
                 egui::global_theme_preference_buttons(ui);
                 ui.horizontal(|ui| {
@@ -140,6 +126,31 @@ impl eframe::App for WealthTrackerApp {
                         0.0..=10.0,
                     ));
                 });
+                ui.horizontal(|ui| {
+                    ui.label("Resolution:");
+                    ui.add(egui::Slider::new(
+                        &mut self.application_settings.interval_days,
+                        1..=30,
+                    ));
+                });
+            });
+            ui.separator();
+            ui.heading("Assets");
+            egui::ScrollArea::new(true).show(ui, |ui| {
+                let mut id_to_delete: Uuid = Uuid::nil();
+                for asset in &mut self.portfolio.assets {
+                    let header_name = asset.name();
+                    let colored_header = egui::RichText::new(header_name).color(asset.color());
+                    egui::CollapsingHeader::new(colored_header)
+                        .id_salt(asset.uuid())
+                        .show(ui, |ui| {
+                            asset.ui_edit(ui);
+                            if asset.should_delete() {
+                                id_to_delete = asset.uuid();
+                            }
+                        });
+                }
+                self.portfolio.delete_asset(id_to_delete);
             });
         });
 
@@ -150,19 +161,31 @@ impl eframe::App for WealthTrackerApp {
             let end_date = NaiveDate::from_ymd_opt(2030, 1, 1).unwrap();
             let mut lines = Vec::new();
             for asset in &self.portfolio.assets {
-                let line = create_plot_line(asset.clone(), start_date, end_date, INTERVAL_DAYS)
-                    .name(asset.name())
-                    .width(self.application_settings.stroke_width);
+                let line = create_plot_line(
+                    asset.clone(),
+                    start_date,
+                    end_date,
+                    self.application_settings.interval_days,
+                )
+                .name(asset.name())
+                .width(self.application_settings.stroke_width)
+                .color(asset.color());
                 lines.push(line);
             }
             let (max, min) = if self.portfolio.assets.is_empty() {
                 (0.0, 0.0)
             } else {
                 (
-                    self.portfolio
-                        .max_value(start_date, end_date, INTERVAL_DAYS),
-                    self.portfolio
-                        .min_value(start_date, end_date, INTERVAL_DAYS),
+                    self.portfolio.max_value(
+                        start_date,
+                        end_date,
+                        self.application_settings.interval_days,
+                    ),
+                    self.portfolio.min_value(
+                        start_date,
+                        end_date,
+                        self.application_settings.interval_days,
+                    ),
                 )
             };
 

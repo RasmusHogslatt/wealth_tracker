@@ -2,6 +2,7 @@
 
 use chrono::{Duration, NaiveDate};
 use egui_plot::{Line, PlotPoints};
+use uuid::Uuid;
 
 use crate::{asset::AssetTrait, Asset};
 
@@ -45,4 +46,12 @@ pub fn create_plot_line(
         .collect();
 
     Line::new(PlotPoints::new(plot_points))
+}
+
+pub fn get_random_bytes_from_uuid(uuid: &Uuid) -> u8 {
+    // Get all bytes of the UUID
+    let bytes = uuid.as_bytes();
+
+    // XOR all bytes together to get better distribution
+    bytes.iter().fold(0u8, |acc, &byte| acc ^ byte)
 }

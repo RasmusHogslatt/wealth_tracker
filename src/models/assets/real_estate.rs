@@ -2,7 +2,7 @@ pub use chrono::NaiveDate;
 use egui::Ui;
 use uuid::Uuid;
 
-use crate::asset::AssetTrait;
+use crate::{asset::AssetTrait, plot_utils::get_random_bytes_from_uuid};
 
 #[derive(Clone, Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct RealEstate {
@@ -12,16 +12,21 @@ pub struct RealEstate {
     pub rate_per_year: f32,
     pub acquisition_date: NaiveDate,
     pub should_delete: bool,
+    pub color: egui::Color32,
 }
 impl Default for RealEstate {
     fn default() -> Self {
+        let uuid = Uuid::new_v4();
+        // create red nuanced color from uuid
+        let color = egui::Color32::from_rgb(0, get_random_bytes_from_uuid(&uuid), 0);
         Self {
-            uuid: Uuid::new_v4(),
+            uuid,
             name: "Real Estate".to_owned(),
             value: 110000.0,
             rate_per_year: 5.0,
             acquisition_date: chrono::Utc::now().date_naive(),
             should_delete: false,
+            color,
         }
     }
 }
@@ -102,5 +107,9 @@ impl AssetTrait for RealEstate {
 
     fn should_delete(&self) -> bool {
         self.should_delete
+    }
+
+    fn color(&self) -> egui::Color32 {
+        self.color
     }
 }

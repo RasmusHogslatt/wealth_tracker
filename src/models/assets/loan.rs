@@ -2,7 +2,7 @@ pub use chrono::NaiveDate;
 use egui::Ui;
 use uuid::Uuid;
 
-use crate::asset::AssetTrait;
+use crate::{asset::AssetTrait, plot_utils::get_random_bytes_from_uuid};
 
 #[derive(Clone, Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct Loan {
@@ -13,17 +13,21 @@ pub struct Loan {
     pub acquisition_date: NaiveDate,
     pub monthly_principal: f32,
     pub should_delete: bool,
+    pub color: egui::Color32,
 }
 impl Default for Loan {
     fn default() -> Self {
+        let uuid = Uuid::new_v4();
+        let color = egui::Color32::from_rgb(get_random_bytes_from_uuid(&uuid), 0, 0);
         Self {
-            uuid: Uuid::new_v4(),
+            uuid,
             name: "New Loan".to_owned(),
             value: 100000.0,
             rate_per_year: 5.0,
             acquisition_date: chrono::Utc::now().date_naive(),
             monthly_principal: 0.0,
             should_delete: false,
+            color,
         }
     }
 }
@@ -124,5 +128,9 @@ impl AssetTrait for Loan {
 
     fn should_delete(&self) -> bool {
         self.should_delete
+    }
+
+    fn color(&self) -> egui::Color32 {
+        self.color
     }
 }

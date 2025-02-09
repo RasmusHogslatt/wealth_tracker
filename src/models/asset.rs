@@ -11,6 +11,7 @@ pub trait AssetTrait {
     fn should_delete(&self) -> bool {
         false
     }
+    fn color(&self) -> egui::Color32;
 }
 #[derive(serde::Deserialize, serde::Serialize, Clone, Debug, PartialEq)]
 pub enum Asset {
@@ -48,6 +49,12 @@ impl AssetTrait for Asset {
         match self {
             Asset::RealEstate(real_estate) => real_estate.should_delete(),
             Asset::Loan(loan) => loan.should_delete(),
+        }
+    }
+    fn color(&self) -> egui::Color32 {
+        match self {
+            Asset::RealEstate(real_estate) => real_estate.color(),
+            Asset::Loan(loan) => loan.color(),
         }
     }
 }
