@@ -1,8 +1,7 @@
+use crate::{asset::AssetTrait, plot_utils::get_value_points_for_asset, Asset};
 use chrono::NaiveDate;
 
-use crate::{asset::AssetTrait, plot_utils::get_value_points_for_asset, Asset};
-
-/// A portfolio that can hold various financial instruments.
+#[derive(serde::Deserialize, serde::Serialize)]
 pub struct Portfolio {
     pub assets: Vec<Asset>,
 }

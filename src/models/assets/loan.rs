@@ -1,9 +1,12 @@
 pub use chrono::NaiveDate;
+use egui::Ui;
+use uuid::Uuid;
 
 use crate::asset::AssetTrait;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct Loan {
+    pub uuid: Uuid,
     pub name: String,
     pub value: f32,
     pub rate_per_year: f32,
@@ -13,47 +16,42 @@ pub struct Loan {
 impl Default for Loan {
     fn default() -> Self {
         Self {
-            name: "House loan".to_owned(),
-            value: 500000.0,
-            rate_per_year: 7.0, // 5% value growth per year
+            uuid: Uuid::new_v4(),
+            name: "New Loan".to_owned(),
+            value: 100000.0,
+            rate_per_year: 5.0,
             acquisition_date: chrono::Utc::now().date_naive(),
-            monthly_principal: 3000.0,
+            monthly_principal: 0.0,
         }
     }
 }
 
 impl AssetTrait for Loan {
     fn value(&self, date: NaiveDate) -> f32 {
-        // If the date is on or before the loan's acquisition, return the initial principal.
         if date <= self.acquisition_date {
             return self.value;
         }
 
-        // Determine the total elapsed time in days since acquisition.
         let duration = date.signed_duration_since(self.acquisition_date);
         let total_days = duration.num_days();
-
-        // Approximate each month as 30 days.
         let full_months = total_days / 30;
         let remaining_days = total_days % 30;
 
-        // Compute the total principal paid over all full months.
-        let principal_paid = self.monthly_principal * (full_months as f32);
+        // Start with initial principal
+        let mut remaining_principal = self.value;
+        let monthly_rate = self.rate_per_year / 100.0 / 12.0;
 
-        // Ensure the remaining principal never goes below zero.
-        let mut remaining_principal = if self.value > principal_paid {
-            self.value - principal_paid
-        } else {
-            0.0
-        };
+        // For each full month:
+        // 1. Add interest for the month
+        // 2. Subtract principal payment
+        for _ in 0..full_months {
+            remaining_principal += remaining_principal * monthly_rate;
+            remaining_principal = (remaining_principal - self.monthly_principal).max(0.0);
+        }
 
-        // For any partial month, compute the accrued interest on the remaining principal.
-        // Since interest is paid monthly, it is not compounded into the principal.
+        // Handle any remaining partial month
         if remaining_principal > 0.0 && remaining_days > 0 {
             let fraction_of_month = remaining_days as f32 / 30.0;
-            // Derive the monthly interest rate from the annual rate.
-            let monthly_rate = self.rate_per_year / 100.0 / 12.0;
-            // Accrued interest for the partial month:
             let accrued_interest = remaining_principal * monthly_rate * fraction_of_month;
             remaining_principal += accrued_interest;
         }
@@ -63,5 +61,57 @@ impl AssetTrait for Loan {
 
     fn name(&self) -> String {
         self.name.clone()
+    }
+
+    fn ui_edit(&mut self, ui: &mut Ui) -> bool {
+        let mut modified = false;
+
+        ui.group(|ui| {
+            modified |= ui.text_edit_singleline(&mut self.name).changed();
+
+            ui.horizontal(|ui| {
+                ui.label("Value: ");
+                modified |= ui
+                    .add(
+                        egui::DragValue::new(&mut self.value)
+                            .speed(1000.0)
+                            .prefix("$"),
+                    )
+                    .changed();
+            });
+
+            ui.horizontal(|ui| {
+                ui.label("Interest Rate (%): ");
+                modified |= ui
+                    .add(
+                        egui::DragValue::new(&mut self.rate_per_year)
+                            .speed(0.1)
+                            .range(0.0..=20.0),
+                    )
+                    .changed();
+            });
+
+            ui.horizontal(|ui| {
+                ui.label("Monthly Principal: ");
+                modified |= ui
+                    .add(
+                        egui::DragValue::new(&mut self.monthly_principal)
+                            .speed(100.0)
+                            .prefix("$"),
+                    )
+                    .changed();
+            });
+
+            ui.horizontal(|ui| {
+                ui.label("Acquisition Date: ");
+                ui.label(self.acquisition_date.to_string());
+            });
+        });
+
+        modified
+    }
+
+    fn uuid(&self) -> Uuid {
+        self.uuid
     }
 }

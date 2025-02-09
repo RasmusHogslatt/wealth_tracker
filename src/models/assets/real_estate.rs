@@ -1,9 +1,12 @@
 pub use chrono::NaiveDate;
+use egui::Ui;
+use uuid::Uuid;
 
 use crate::asset::AssetTrait;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct RealEstate {
+    pub uuid: Uuid,
     pub name: String,
     pub value: f32,
     pub rate_per_year: f32,
@@ -12,9 +15,10 @@ pub struct RealEstate {
 impl Default for RealEstate {
     fn default() -> Self {
         Self {
+            uuid: Uuid::new_v4(),
             name: "Real Estate".to_owned(),
             value: 110000.0,
-            rate_per_year: 5.0, // 5% value growth per year
+            rate_per_year: 5.0,
             acquisition_date: chrono::Utc::now().date_naive(),
         }
     }
@@ -44,5 +48,48 @@ impl AssetTrait for RealEstate {
 
     fn name(&self) -> String {
         self.name.clone()
+    }
+
+    fn ui_edit(&mut self, ui: &mut Ui) -> bool {
+        let mut modified = false;
+
+        ui.group(|ui| {
+            modified |= ui.text_edit_singleline(&mut self.name).changed();
+
+            ui.horizontal(|ui| {
+                ui.label("Value: ");
+                modified |= ui
+                    .add(
+                        egui::DragValue::new(&mut self.value)
+                            .speed(1000.0)
+                            .prefix("$"),
+                    )
+                    .changed();
+            });
+
+            ui.horizontal(|ui| {
+                ui.label("Annual Rate (%): ");
+                modified |= ui
+                    .add(
+                        egui::DragValue::new(&mut self.rate_per_year)
+                            .speed(0.1)
+                            .range(-20.0..=20.0),
+                    )
+                    .changed();
+            });
+
+            ui.horizontal(|ui| {
+                ui.label("Acquisition Date: ");
+                // You might want to add a date picker here
+                // For now, we'll just show the date
+                ui.label(self.acquisition_date.to_string());
+            });
+        });
+
+        modified
+    }
+
+    fn uuid(&self) -> Uuid {
+        self.uuid
     }
 }

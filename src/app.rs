@@ -1,18 +1,33 @@
-// app.rs
-
 use crate::asset::{AssetTrait, AssetType};
 use crate::models::Asset;
 use crate::plot_utils::create_plot_line;
 use crate::{Loan, Portfolio, RealEstate};
 use chrono::{NaiveDate, TimeZone, Utc};
 use eframe::egui;
-use egui_plot::{Legend, Plot, PlotPoints};
+use egui_plot::{Legend, Plot};
+use uuid::Uuid;
 
+#[derive(serde::Deserialize, serde::Serialize)]
+pub struct ApplicationSettings {
+    pub stroke_width: f32,
+    pub interval_days: i64,
+}
+
+impl Default for ApplicationSettings {
+    fn default() -> Self {
+        Self {
+            stroke_width: 2.0,
+            interval_days: 1,
+        }
+    }
+}
+
+#[derive(serde::Deserialize, serde::Serialize)]
 pub struct WealthTrackerApp {
     label: String,
     portfolio: Portfolio,
-    ui_assets: Vec<Asset>,
     selected_asset_type: AssetType,
+    application_settings: ApplicationSettings,
 }
 
 impl Default for WealthTrackerApp {
@@ -27,12 +42,14 @@ impl Default for WealthTrackerApp {
             value: 1000000.0,
             rate_per_year: 5.0,
             acquisition_date: today,
+            uuid: Uuid::new_v4(),
         };
         let rental_property = RealEstate {
             name: "Rental Property".to_owned(),
             value: -500000.0,
             rate_per_year: 3.0,
             acquisition_date: today,
+            uuid: Uuid::new_v4(),
         };
         let house_loan = Loan {
             name: "House Loan".to_owned(),
@@ -40,41 +57,77 @@ impl Default for WealthTrackerApp {
             rate_per_year: 7.0,
             acquisition_date: today,
             monthly_principal: 3000.0,
+            uuid: Uuid::new_v4(),
         };
         portfolio.add_asset(Asset::RealEstate(primary_residence));
         portfolio.add_asset(Asset::RealEstate(rental_property));
         portfolio.add_asset(Asset::Loan(house_loan));
 
-        let ui_assets = vec![Asset::RealEstate(RealEstate::default())];
         Self {
             label: "Wealth Tracker".to_owned(),
             portfolio,
-            ui_assets,
             selected_asset_type: AssetType::RealEstate,
+            application_settings: ApplicationSettings::default(),
         }
     }
 }
 
 impl WealthTrackerApp {
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
-        Self::default()
+        if let Some(storage) = cc.storage {
+            return eframe::get_value(storage, eframe::APP_KEY).unwrap_or_default();
+        }
+        Default::default()
     }
 }
 
 impl eframe::App for WealthTrackerApp {
+    fn save(&mut self, storage: &mut dyn eframe::Storage) {
+        eframe::set_value(storage, eframe::APP_KEY, self);
+    }
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         const INTERVAL_DAYS: i64 = 1;
         egui::SidePanel::left("left").show(ctx, |ui| {
-            egui::ComboBox::from_label("Add new asset")
-                .selected_text(format!("{:?}", self.selected_asset_type))
-                .show_ui(ui, |ui| {
-                    ui.selectable_value(
-                        &mut self.selected_asset_type,
-                        AssetType::RealEstate,
-                        "Real Estate",
-                    );
-                    ui.selectable_value(&mut self.selected_asset_type, AssetType::Loan, "Loan");
-                });
+            ui.group(|ui| {
+                egui::ComboBox::from_label("Add new asset")
+                    .selected_text(format!("{:?}", self.selected_asset_type))
+                    .show_ui(ui, |ui| {
+                        ui.selectable_value(
+                            &mut self.selected_asset_type,
+                            AssetType::RealEstate,
+                            "Real Estate",
+                        );
+                        ui.selectable_value(&mut self.selected_asset_type, AssetType::Loan, "Loan");
+                    });
+                match self.selected_asset_type {
+                    AssetType::RealEstate => {
+                        if ui.button("Add Real Estate").clicked() {
+                            self.portfolio
+                                .add_asset(Asset::RealEstate(RealEstate::default()));
+                        }
+                    }
+                    AssetType::Loan => {
+                        if ui.button("Add Loan").clicked() {
+                            self.portfolio.add_asset(Asset::Loan(Loan::default()));
+                        }
+                    }
+                }
+            });
+            ui.separator();
+            ui.heading("Edit Assets");
+            for asset in &mut self.portfolio.assets {
+                let header_name = asset.name();
+                egui::CollapsingHeader::new(header_name)
+                    .id_salt(asset.uuid())
+                    .show(ui, |ui| {
+                        if asset.ui_edit(ui) {
+                            // Handle modifications
+                        }
+                    });
+            }
+            ui.collapsing("Application settings", |ui| {
+                egui::global_theme_preference_buttons(ui);
+            });
         });
 
         egui::CentralPanel::default().show(ctx, |ui| {
