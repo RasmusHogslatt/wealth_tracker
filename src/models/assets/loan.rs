@@ -12,6 +12,7 @@ pub struct Loan {
     pub rate_per_year: f32,
     pub acquisition_date: NaiveDate,
     pub monthly_principal: f32,
+    pub should_delete: bool,
 }
 impl Default for Loan {
     fn default() -> Self {
@@ -22,6 +23,7 @@ impl Default for Loan {
             rate_per_year: 5.0,
             acquisition_date: chrono::Utc::now().date_naive(),
             monthly_principal: 0.0,
+            should_delete: false,
         }
     }
 }
@@ -67,7 +69,12 @@ impl AssetTrait for Loan {
         let mut modified = false;
 
         ui.group(|ui| {
-            modified |= ui.text_edit_singleline(&mut self.name).changed();
+            ui.horizontal(|ui| {
+                modified |= ui.text_edit_singleline(&mut self.name).changed();
+                if ui.small_button("Delete").clicked() {
+                    self.should_delete = true;
+                }
+            });
 
             ui.horizontal(|ui| {
                 ui.label("Value: ");
@@ -113,5 +120,9 @@ impl AssetTrait for Loan {
 
     fn uuid(&self) -> Uuid {
         self.uuid
+    }
+
+    fn should_delete(&self) -> bool {
+        self.should_delete
     }
 }

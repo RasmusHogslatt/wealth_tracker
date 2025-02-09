@@ -11,6 +11,7 @@ pub struct RealEstate {
     pub value: f32,
     pub rate_per_year: f32,
     pub acquisition_date: NaiveDate,
+    pub should_delete: bool,
 }
 impl Default for RealEstate {
     fn default() -> Self {
@@ -20,6 +21,7 @@ impl Default for RealEstate {
             value: 110000.0,
             rate_per_year: 5.0,
             acquisition_date: chrono::Utc::now().date_naive(),
+            should_delete: false,
         }
     }
 }
@@ -54,7 +56,12 @@ impl AssetTrait for RealEstate {
         let mut modified = false;
 
         ui.group(|ui| {
-            modified |= ui.text_edit_singleline(&mut self.name).changed();
+            ui.horizontal(|ui| {
+                modified |= ui.text_edit_singleline(&mut self.name).changed();
+                if ui.small_button("Delete").clicked() {
+                    self.should_delete = true;
+                }
+            });
 
             ui.horizontal(|ui| {
                 ui.label("Value: ");
@@ -91,5 +98,9 @@ impl AssetTrait for RealEstate {
 
     fn uuid(&self) -> Uuid {
         self.uuid
+    }
+
+    fn should_delete(&self) -> bool {
+        self.should_delete
     }
 }

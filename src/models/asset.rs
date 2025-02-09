@@ -8,6 +8,9 @@ pub trait AssetTrait {
     fn name(&self) -> String;
     fn ui_edit(&mut self, ui: &mut Ui) -> bool;
     fn uuid(&self) -> Uuid;
+    fn should_delete(&self) -> bool {
+        false
+    }
 }
 #[derive(serde::Deserialize, serde::Serialize, Clone, Debug, PartialEq)]
 pub enum Asset {
@@ -39,6 +42,12 @@ impl AssetTrait for Asset {
         match self {
             Asset::RealEstate(real_estate) => real_estate.uuid,
             Asset::Loan(loan) => loan.uuid,
+        }
+    }
+    fn should_delete(&self) -> bool {
+        match self {
+            Asset::RealEstate(real_estate) => real_estate.should_delete(),
+            Asset::Loan(loan) => loan.should_delete(),
         }
     }
 }

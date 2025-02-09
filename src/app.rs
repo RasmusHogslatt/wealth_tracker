@@ -1,7 +1,7 @@
 use crate::asset::{AssetTrait, AssetType};
 use crate::models::Asset;
 use crate::plot_utils::create_plot_line;
-use crate::{Loan, Portfolio, RealEstate};
+use crate::{portfolio, Loan, Portfolio, RealEstate};
 use chrono::{NaiveDate, TimeZone, Utc};
 use eframe::egui;
 use egui_plot::{Legend, Plot};
@@ -43,6 +43,7 @@ impl Default for WealthTrackerApp {
             rate_per_year: 5.0,
             acquisition_date: today,
             uuid: Uuid::new_v4(),
+            should_delete: false,
         };
         let rental_property = RealEstate {
             name: "Rental Property".to_owned(),
@@ -50,6 +51,7 @@ impl Default for WealthTrackerApp {
             rate_per_year: 3.0,
             acquisition_date: today,
             uuid: Uuid::new_v4(),
+            should_delete: false,
         };
         let house_loan = Loan {
             name: "House Loan".to_owned(),
@@ -58,6 +60,7 @@ impl Default for WealthTrackerApp {
             acquisition_date: today,
             monthly_principal: 3000.0,
             uuid: Uuid::new_v4(),
+            should_delete: false,
         };
         portfolio.add_asset(Asset::RealEstate(primary_residence));
         portfolio.add_asset(Asset::RealEstate(rental_property));
@@ -115,18 +118,28 @@ impl eframe::App for WealthTrackerApp {
             });
             ui.separator();
             ui.heading("Edit Assets");
+            let mut id_to_delete: Uuid = Uuid::nil();
             for asset in &mut self.portfolio.assets {
                 let header_name = asset.name();
                 egui::CollapsingHeader::new(header_name)
                     .id_salt(asset.uuid())
                     .show(ui, |ui| {
-                        if asset.ui_edit(ui) {
-                            // Handle modifications
+                        asset.ui_edit(ui);
+                        if asset.should_delete() {
+                            id_to_delete = asset.uuid();
                         }
                     });
             }
+            self.portfolio.delete_asset(id_to_delete);
             ui.collapsing("Application settings", |ui| {
                 egui::global_theme_preference_buttons(ui);
+                ui.horizontal(|ui| {
+                    ui.label("Stroke width:");
+                    ui.add(egui::Slider::new(
+                        &mut self.application_settings.stroke_width,
+                        0.0..=10.0,
+                    ));
+                });
             });
         });
 
@@ -138,21 +151,27 @@ impl eframe::App for WealthTrackerApp {
             let mut lines = Vec::new();
             for asset in &self.portfolio.assets {
                 let line = create_plot_line(asset.clone(), start_date, end_date, INTERVAL_DAYS)
-                    .name(asset.name());
+                    .name(asset.name())
+                    .width(self.application_settings.stroke_width);
                 lines.push(line);
             }
-            let max = self
-                .portfolio
-                .max_value(start_date, end_date, INTERVAL_DAYS);
-            let min = self
-                .portfolio
-                .min_value(start_date, end_date, INTERVAL_DAYS);
+            let (max, min) = if self.portfolio.assets.is_empty() {
+                (0.0, 0.0)
+            } else {
+                (
+                    self.portfolio
+                        .max_value(start_date, end_date, INTERVAL_DAYS),
+                    self.portfolio
+                        .min_value(start_date, end_date, INTERVAL_DAYS),
+                )
+            };
 
             Plot::new("wealth_over_time")
                 .legend(Legend::default())
                 .include_y(0.0)
                 .include_y(max)
                 .include_y(min)
+                .clamp_grid(true)
                 .x_axis_formatter(|x, _range| {
                     let timestamp = x.value as i64;
                     let date = Utc.timestamp_opt(timestamp, 0).unwrap();

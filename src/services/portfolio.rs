@@ -15,6 +15,10 @@ impl Portfolio {
         self.assets.push(asset);
     }
 
+    pub fn delete_asset(&mut self, uuid: uuid::Uuid) {
+        self.assets.retain(|asset| asset.uuid() != uuid);
+    }
+
     pub fn total_value(&self, date: NaiveDate) -> f32 {
         self.assets.iter().map(|asset| asset.value(date)).sum()
     }
