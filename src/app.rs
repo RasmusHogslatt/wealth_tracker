@@ -1,7 +1,7 @@
 use crate::asset::{AssetTrait, AssetType};
 use crate::models::Asset;
 use crate::plot_utils::{create_plot_line, create_portfolio_plot_line};
-use crate::{Loan, Portfolio, RealEstate};
+use crate::{Loan, Portfolio, RealEstate, Tradable};
 use chrono::{Datelike, NaiveDate, TimeZone, Utc};
 use eframe::egui;
 use egui_plot::{Legend, Plot};
@@ -64,9 +64,18 @@ impl Default for WealthTrackerApp {
             should_delete: false,
             ..Default::default()
         };
+        let stocks = Tradable {
+            name: "Stocks".to_owned(),
+            value: 1000.0,
+            rate_per_year: 8.0,
+            acquisition_date: today,
+            contribution: 100.0,
+            ..Default::default()
+        };
         portfolio.add_asset(Asset::RealEstate(primary_residence));
         portfolio.add_asset(Asset::RealEstate(rental_property));
         portfolio.add_asset(Asset::Loan(house_loan));
+        portfolio.add_asset(Asset::Tradable(stocks));
 
         Self {
             label: "Wealth Tracker".to_owned(),
@@ -103,6 +112,11 @@ impl eframe::App for WealthTrackerApp {
                             "Real Estate",
                         );
                         ui.selectable_value(&mut self.selected_asset_type, AssetType::Loan, "Loan");
+                        ui.selectable_value(
+                            &mut self.selected_asset_type,
+                            AssetType::Tradable,
+                            "Tradable",
+                        );
                     });
                 match self.selected_asset_type {
                     AssetType::RealEstate => {
@@ -114,6 +128,12 @@ impl eframe::App for WealthTrackerApp {
                     AssetType::Loan => {
                         if ui.button("Add Loan").clicked() {
                             self.portfolio.add_asset(Asset::Loan(Loan::default()));
+                        }
+                    }
+                    AssetType::Tradable => {
+                        if ui.button("Add Tradable").clicked() {
+                            self.portfolio
+                                .add_asset(Asset::Tradable(Tradable::default()));
                         }
                     }
                 }
@@ -132,7 +152,7 @@ impl eframe::App for WealthTrackerApp {
                     ui.label("Resolution:");
                     ui.add(egui::Slider::new(
                         &mut self.application_settings.interval_days,
-                        1..=30,
+                        1..=365,
                     ));
                 });
                 ui.horizontal(|ui| {
@@ -144,11 +164,26 @@ impl eframe::App for WealthTrackerApp {
                             Utc::now().year()..=Utc::now().year() + 50,
                         ));
                     });
+
+                    let start_month = if self.application_settings.end_date.0 == Utc::now().year() {
+                        let next_month = Utc::now().month() + 1;
+                        if next_month > 12 {
+                            1
+                        } else {
+                            next_month
+                        }
+                    } else {
+                        1
+                    };
+
+                    // Optionally assign start_month to your field:
+                    // self.application_settings.end_date.1 = start_month;
+
                     ui.horizontal(|ui| {
                         ui.label("Month");
                         ui.add(egui::Slider::new(
                             &mut self.application_settings.end_date.1,
-                            1..=12,
+                            start_month..=12,
                         ));
                     });
                 });
@@ -228,8 +263,10 @@ impl eframe::App for WealthTrackerApp {
                 .clamp_grid(true)
                 .x_axis_formatter(|x, _range| {
                     let timestamp = x.value as i64;
-                    let date = Utc.timestamp_opt(timestamp, 0).unwrap();
-                    date.format("%Y-%m-%d").to_string()
+                    match Utc.timestamp_opt(timestamp, 0) {
+                        chrono::LocalResult::Single(date) => date.format("%Y-%m-%d").to_string(),
+                        _ => "Invalid date".to_owned(),
+                    }
                 })
                 .show(ui, |plot_ui| {
                     for line in lines {
