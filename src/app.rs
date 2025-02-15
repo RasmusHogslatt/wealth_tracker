@@ -19,7 +19,7 @@ impl Default for ApplicationSettings {
         Self {
             stroke_width: 2.0,
             interval_days: 15,
-            end_date: (2024, 1),
+            end_date: (Utc::now().date_naive().year() + 10, 1),
         }
     }
 }
