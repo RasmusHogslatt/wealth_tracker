@@ -1,39 +1,82 @@
-use crate::models::instrument::FinancialInstrument;
+use super::{Loan, RealEstate, Tradable};
 use chrono::NaiveDate;
+use egui::Ui;
+use uuid::Uuid;
 
-#[derive(Clone, Debug)]
-pub struct Asset {
-    pub name: String,
-    pub initial_value: f32,
-    pub value_change_per_year: f32, // e.g., 0.05 for 5% per year (positive for growth, negative for depreciation)
-    pub acquisition_date: NaiveDate,
+pub trait AssetTrait {
+    fn value(&self, date: NaiveDate) -> f32;
+    fn name(&self) -> String;
+    fn ui_edit(&mut self, ui: &mut Ui) -> bool;
+    fn uuid(&self) -> Uuid;
+    fn should_delete(&self) -> bool {
+        false
+    }
+    fn color(&self) -> egui::Color32;
+    fn is_growth(&self) -> bool;
+}
+#[derive(serde::Deserialize, serde::Serialize, Clone, Debug, PartialEq)]
+pub enum Asset {
+    RealEstate(RealEstate),
+    Loan(Loan),
+    Tradable(Tradable),
 }
 
-impl FinancialInstrument for Asset {
-    fn value_on(&self, date: NaiveDate) -> f32 {
-        let years_elapsed = (date - self.acquisition_date).num_days() as f32 / 365.25;
-        // Compute the new value. For positive rate_of_change, the asset's value increases.
-        // For negative rate_of_change, the asset's value decreases.
-        let new_value = self.initial_value * (1.0 + self.value_change_per_year * years_elapsed);
-        new_value.max(0.0)
-    }
-
-    fn acquisition_date(&self) -> NaiveDate {
-        self.acquisition_date
-    }
-
-    fn name(&self) -> &str {
-        &self.name
-    }
-}
-
-impl Default for Asset {
-    fn default() -> Self {
-        Self {
-            name: "Asset".to_owned(),
-            initial_value: 0.0,
-            value_change_per_year: 0.0,
-            acquisition_date: chrono::Utc::now().date_naive(),
+impl AssetTrait for Asset {
+    fn value(&self, date: NaiveDate) -> f32 {
+        match self {
+            Asset::RealEstate(real_estate) => real_estate.value(date),
+            Asset::Loan(loan) => loan.value(date),
+            Asset::Tradable(tradable) => tradable.value(date),
         }
     }
+
+    fn name(&self) -> String {
+        match self {
+            Asset::RealEstate(real_estate) => real_estate.name.clone(),
+            Asset::Loan(loan) => loan.name.clone(),
+            Asset::Tradable(tradable) => tradable.name.clone(),
+        }
+    }
+    fn ui_edit(&mut self, ui: &mut Ui) -> bool {
+        match self {
+            Asset::RealEstate(real_estate) => real_estate.ui_edit(ui),
+            Asset::Loan(loan) => loan.ui_edit(ui),
+            Asset::Tradable(tradable) => tradable.ui_edit(ui),
+        }
+    }
+    fn uuid(&self) -> Uuid {
+        match self {
+            Asset::RealEstate(real_estate) => real_estate.uuid,
+            Asset::Loan(loan) => loan.uuid,
+            Asset::Tradable(tradable) => tradable.uuid,
+        }
+    }
+    fn should_delete(&self) -> bool {
+        match self {
+            Asset::RealEstate(real_estate) => real_estate.should_delete(),
+            Asset::Loan(loan) => loan.should_delete(),
+            Asset::Tradable(tradable) => tradable.should_delete(),
+        }
+    }
+    fn color(&self) -> egui::Color32 {
+        match self {
+            Asset::RealEstate(real_estate) => real_estate.color(),
+            Asset::Loan(loan) => loan.color(),
+            Asset::Tradable(tradable) => tradable.color(),
+        }
+    }
+    fn is_growth(&self) -> bool {
+        match self {
+            Asset::RealEstate(real_estate) => real_estate.is_growth(),
+            Asset::Loan(loan) => loan.is_growth(),
+            Asset::Tradable(tradable) => tradable.is_growth(),
+        }
+    }
+}
+
+#[derive(PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
+pub enum AssetType {
+    RealEstate,
+    Loan,
+    Tradable,
 }
