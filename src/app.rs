@@ -2,7 +2,7 @@ use crate::asset::{AssetTrait, AssetType};
 use crate::models::Asset;
 use crate::plot_utils::create_plot_line;
 use crate::{Loan, Portfolio, RealEstate};
-use chrono::{NaiveDate, TimeZone, Utc};
+use chrono::{Datelike, NaiveDate, TimeZone, Utc};
 use eframe::egui;
 use egui_plot::{Legend, Plot};
 use uuid::Uuid;
@@ -11,6 +11,7 @@ use uuid::Uuid;
 pub struct ApplicationSettings {
     pub stroke_width: f32,
     pub interval_days: i64,
+    pub end_date: (i32, u32),
 }
 
 impl Default for ApplicationSettings {
@@ -18,6 +19,7 @@ impl Default for ApplicationSettings {
         Self {
             stroke_width: 2.0,
             interval_days: 1,
+            end_date: (2024, 1),
         }
     }
 }
@@ -133,6 +135,23 @@ impl eframe::App for WealthTrackerApp {
                         1..=30,
                     ));
                 });
+                ui.horizontal(|ui| {
+                    ui.label("End date:");
+                    ui.horizontal(|ui| {
+                        ui.label("Year");
+                        ui.add(egui::Slider::new(
+                            &mut self.application_settings.end_date.0,
+                            Utc::now().year()..=Utc::now().year() + 50,
+                        ));
+                    });
+                    ui.horizontal(|ui| {
+                        ui.label("Month");
+                        ui.add(egui::Slider::new(
+                            &mut self.application_settings.end_date.1,
+                            1..=12,
+                        ));
+                    });
+                });
             });
             ui.separator();
             ui.heading("Assets");
@@ -158,7 +177,12 @@ impl eframe::App for WealthTrackerApp {
             ui.heading(&self.label);
             // Plot the portfolio value over time.
             let start_date = Utc::now().date_naive();
-            let end_date = NaiveDate::from_ymd_opt(2030, 1, 1).unwrap();
+            let end_date = NaiveDate::from_ymd_opt(
+                self.application_settings.end_date.0,
+                self.application_settings.end_date.1,
+                1,
+            )
+            .unwrap();
             let mut lines = Vec::new();
             for asset in &self.portfolio.assets {
                 let line = create_plot_line(
