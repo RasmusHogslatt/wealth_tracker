@@ -1,6 +1,6 @@
 use crate::asset::{AssetTrait, AssetType};
 use crate::models::Asset;
-use crate::plot_utils::create_plot_line;
+use crate::plot_utils::{create_plot_line, create_portfolio_plot_line};
 use crate::{Loan, Portfolio, RealEstate};
 use chrono::{Datelike, NaiveDate, TimeZone, Utc};
 use eframe::egui;
@@ -18,7 +18,7 @@ impl Default for ApplicationSettings {
     fn default() -> Self {
         Self {
             stroke_width: 2.0,
-            interval_days: 1,
+            interval_days: 15,
             end_date: (2024, 1),
         }
     }
@@ -196,6 +196,13 @@ impl eframe::App for WealthTrackerApp {
                 .color(asset.color());
                 lines.push(line);
             }
+            let portfolio_line = create_portfolio_plot_line(
+                &self.portfolio,
+                start_date,
+                end_date,
+                self.application_settings.interval_days,
+            );
+            lines.push(portfolio_line);
             let (max, min) = if self.portfolio.assets.is_empty() {
                 (0.0, 0.0)
             } else {

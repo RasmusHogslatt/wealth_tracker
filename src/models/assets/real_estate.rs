@@ -112,4 +112,8 @@ impl AssetTrait for RealEstate {
     fn color(&self) -> egui::Color32 {
         self.color
     }
+
+    fn is_growth(&self) -> bool {
+        true
+    }
 }

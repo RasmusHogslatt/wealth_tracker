@@ -12,6 +12,7 @@ pub trait AssetTrait {
         false
     }
     fn color(&self) -> egui::Color32;
+    fn is_growth(&self) -> bool;
 }
 #[derive(serde::Deserialize, serde::Serialize, Clone, Debug, PartialEq)]
 pub enum Asset {
@@ -55,6 +56,12 @@ impl AssetTrait for Asset {
         match self {
             Asset::RealEstate(real_estate) => real_estate.color(),
             Asset::Loan(loan) => loan.color(),
+        }
+    }
+    fn is_growth(&self) -> bool {
+        match self {
+            Asset::RealEstate(real_estate) => real_estate.is_growth(),
+            Asset::Loan(loan) => loan.is_growth(),
         }
     }
 }

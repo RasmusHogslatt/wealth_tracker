@@ -20,7 +20,17 @@ impl Portfolio {
     }
 
     pub fn total_value(&self, date: NaiveDate) -> f32 {
-        self.assets.iter().map(|asset| asset.value(date)).sum()
+        self.assets
+            .iter()
+            .map(|asset| {
+                let value = asset.value(date);
+                if asset.is_growth() {
+                    value
+                } else {
+                    -value
+                }
+            })
+            .sum()
     }
 
     pub fn max_value(&self, start_date: NaiveDate, end_date: NaiveDate, interval_days: i64) -> f32 {
