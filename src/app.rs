@@ -1,7 +1,7 @@
 use crate::asset::{AssetTrait, AssetType};
 use crate::models::Asset;
 use crate::plot_utils::{create_plot_line, create_portfolio_plot_line};
-use crate::{Loan, Portfolio, RealEstate, Tradable};
+use crate::{Cash, Loan, Portfolio, RealEstate, Tradable};
 use chrono::{Datelike, NaiveDate, TimeZone, Utc};
 use eframe::egui;
 use egui_plot::{Legend, Plot};
@@ -119,6 +119,7 @@ impl eframe::App for WealthTrackerApp {
                             AssetType::Tradable,
                             "Tradable",
                         );
+                        ui.selectable_value(&mut self.selected_asset_type, AssetType::Cash, "Cash");
                     });
                 match self.selected_asset_type {
                     AssetType::RealEstate => {
@@ -136,6 +137,11 @@ impl eframe::App for WealthTrackerApp {
                         if ui.button("Add Tradable").clicked() {
                             self.portfolio
                                 .add_asset(Asset::Tradable(Tradable::default()));
+                        }
+                    }
+                    AssetType::Cash => {
+                        if ui.button("Add Cash").clicked() {
+                            self.portfolio.add_asset(Asset::Cash(Cash::default()));
                         }
                     }
                 }
