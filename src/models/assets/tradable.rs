@@ -28,7 +28,7 @@ impl Default for Tradable {
     fn default() -> Self {
         let uuid = Uuid::new_v4();
         // create a red nuanced color from uuid
-        let color = egui::Color32::from_rgb(0, get_random_bytes_from_uuid(&uuid), 0);
+        let color = egui::Color32::from_rgb(70, get_random_bytes_from_uuid(&uuid), 70);
         Self {
             uuid,
             name: "Stocks".to_owned(),
@@ -97,9 +97,6 @@ impl AssetTrait for Tradable {
             // Name and Delete button.
             ui.horizontal(|ui| {
                 modified |= ui.text_edit_singleline(&mut self.name).changed();
-                if ui.small_button("Delete").clicked() {
-                    self.should_delete = true;
-                }
             });
 
             // Initial Value.

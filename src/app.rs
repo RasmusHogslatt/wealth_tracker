@@ -18,8 +18,8 @@ impl Default for ApplicationSettings {
     fn default() -> Self {
         Self {
             stroke_width: 2.0,
-            interval_days: 15,
-            end_date: (Utc::now().date_naive().year() + 10, 1),
+            interval_days: 30,
+            end_date: (Utc::now().date_naive().year() + 20, 1),
         }
     }
 }
@@ -60,7 +60,8 @@ impl Default for WealthTrackerApp {
             value: 500000.0,
             rate_per_year: 7.0,
             acquisition_date: today,
-            monthly_principal: 3000.0,
+            principal_payment: 1000.0,
+            principal_frequency: crate::models::assets::tradable::ContributionFrequency::Monthly,
             should_delete: false,
             ..Default::default()
         };
@@ -88,6 +89,7 @@ impl Default for WealthTrackerApp {
 
 impl WealthTrackerApp {
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
+        egui_material_icons::initialize(&cc.egui_ctx);
         if let Some(storage) = cc.storage {
             return eframe::get_value(storage, eframe::APP_KEY).unwrap_or_default();
         }
@@ -176,9 +178,6 @@ impl eframe::App for WealthTrackerApp {
                         1
                     };
 
-                    // Optionally assign start_month to your field:
-                    // self.application_settings.end_date.1 = start_month;
-
                     ui.horizontal(|ui| {
                         ui.label("Month");
                         ui.add(egui::Slider::new(
@@ -195,14 +194,19 @@ impl eframe::App for WealthTrackerApp {
                 for asset in &mut self.portfolio.assets {
                     let header_name = asset.name();
                     let colored_header = egui::RichText::new(header_name).color(asset.color());
-                    egui::CollapsingHeader::new(colored_header)
-                        .id_salt(asset.uuid())
-                        .show(ui, |ui| {
-                            asset.ui_edit(ui);
-                            if asset.should_delete() {
-                                id_to_delete = asset.uuid();
-                            }
-                        });
+                    ui.horizontal(|ui| {
+                        egui::CollapsingHeader::new(colored_header)
+                            .id_salt(asset.uuid())
+                            .show(ui, |ui| {
+                                asset.ui_edit(ui);
+                                if asset.should_delete() {
+                                    id_to_delete = asset.uuid();
+                                }
+                            });
+                        if ui.button(egui_material_icons::icons::ICON_DELETE).clicked() {
+                            id_to_delete = asset.uuid();
+                        }
+                    });
                 }
                 self.portfolio.delete_asset(id_to_delete);
             });

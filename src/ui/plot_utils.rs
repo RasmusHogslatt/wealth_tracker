@@ -29,7 +29,7 @@ pub fn create_plot_line(
     start_date: NaiveDate,
     end_date: NaiveDate,
     interval_days: i64,
-) -> Line {
+) -> Line<'static> {
     let data_points = get_value_points_for_asset(&asset, start_date, end_date, interval_days);
 
     let plot_points: Vec<[f64; 2]> = data_points
@@ -77,7 +77,7 @@ pub fn create_portfolio_plot_line(
     start_date: NaiveDate,
     end_date: NaiveDate,
     interval_days: i64,
-) -> Line {
+) -> Line<'_> {
     let data_points = get_portfolio_value_points(portfolio, start_date, end_date, interval_days);
     let plot_points: Vec<[f64; 2]> = data_points
         .into_iter()

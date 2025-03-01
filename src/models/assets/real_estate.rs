@@ -18,7 +18,7 @@ impl Default for RealEstate {
     fn default() -> Self {
         let uuid = Uuid::new_v4();
         // create red nuanced color from uuid
-        let color = egui::Color32::from_rgb(0, get_random_bytes_from_uuid(&uuid), 0);
+        let color = egui::Color32::from_rgb(70, get_random_bytes_from_uuid(&uuid), 70);
         Self {
             uuid,
             name: "Real Estate".to_owned(),
@@ -63,9 +63,6 @@ impl AssetTrait for RealEstate {
         ui.group(|ui| {
             ui.horizontal(|ui| {
                 modified |= ui.text_edit_singleline(&mut self.name).changed();
-                if ui.small_button("Delete").clicked() {
-                    self.should_delete = true;
-                }
             });
 
             ui.horizontal(|ui| {
