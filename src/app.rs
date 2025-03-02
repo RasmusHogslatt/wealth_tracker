@@ -18,8 +18,8 @@ impl Default for ApplicationSettings {
     fn default() -> Self {
         Self {
             stroke_width: 2.0,
-            interval_days: 30,
-            end_date: (Utc::now().date_naive().year() + 20, 1),
+            interval_days: 45,
+            end_date: (Utc::now().date_naive().year() + 30, 1),
         }
     }
 }
