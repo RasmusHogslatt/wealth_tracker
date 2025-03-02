@@ -57,7 +57,7 @@ impl AssetTrait for RealEstate {
         self.name.clone()
     }
 
-    fn ui_edit(&mut self, ui: &mut Ui) -> bool {
+    fn ui_edit(&mut self, ui: &mut Ui, currency: String) -> bool {
         let mut modified = false;
 
         ui.group(|ui| {
@@ -71,7 +71,7 @@ impl AssetTrait for RealEstate {
                     .add(
                         egui::DragValue::new(&mut self.value)
                             .speed(1000.0)
-                            .prefix("$"),
+                            .prefix(currency),
                     )
                     .changed();
             });

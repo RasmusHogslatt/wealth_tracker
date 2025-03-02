@@ -12,6 +12,7 @@ pub struct ApplicationSettings {
     pub stroke_width: f32,
     pub interval_days: i64,
     pub end_date: (i32, u32),
+    pub currency: String,
 }
 
 impl Default for ApplicationSettings {
@@ -20,10 +21,14 @@ impl Default for ApplicationSettings {
             stroke_width: 2.0,
             interval_days: 45,
             end_date: (Utc::now().date_naive().year() + 30, 1),
+            currency: CURRENCY_SYMBOLS[0].to_string(),
         }
     }
 }
-
+const CURRENCY_SYMBOLS: [&str; 18] = [
+    "USD", "GBP", "EUR", "SEK", "JPY", "AUD", "CAD", "CHF", "CNY", "HKD", "NZD", "SGD", "MYR",
+    "THB", "PHP", "IDR", "KRW", "CZK",
+];
 #[derive(serde::Deserialize, serde::Serialize)]
 pub struct WealthTrackerApp {
     label: String,
@@ -192,6 +197,17 @@ impl eframe::App for WealthTrackerApp {
                         ));
                     });
                 });
+                egui::ComboBox::from_label("Currency")
+                    .selected_text(self.application_settings.currency.clone())
+                    .show_ui(ui, |ui| {
+                        for currency in CURRENCY_SYMBOLS {
+                            ui.selectable_value(
+                                &mut self.application_settings.currency,
+                                currency.to_string(),
+                                currency,
+                            );
+                        }
+                    });
             });
             ui.separator();
             ui.heading("Assets");
@@ -204,7 +220,7 @@ impl eframe::App for WealthTrackerApp {
                         egui::CollapsingHeader::new(colored_header)
                             .id_salt(asset.uuid())
                             .show(ui, |ui| {
-                                asset.ui_edit(ui);
+                                asset.ui_edit(ui, self.application_settings.currency.clone() + " ");
                                 if asset.should_delete() {
                                     id_to_delete = asset.uuid();
                                 }

@@ -80,7 +80,7 @@ impl AssetTrait for Loan {
         self.name.clone()
     }
 
-    fn ui_edit(&mut self, ui: &mut Ui) -> bool {
+    fn ui_edit(&mut self, ui: &mut Ui, currency: String) -> bool {
         let mut modified = false;
 
         ui.group(|ui| {
@@ -94,7 +94,7 @@ impl AssetTrait for Loan {
                     .add(
                         egui::DragValue::new(&mut self.value)
                             .speed(1000.0)
-                            .prefix("$"),
+                            .prefix(currency.clone()),
                     )
                     .changed();
             });
@@ -111,12 +111,12 @@ impl AssetTrait for Loan {
             });
 
             ui.horizontal(|ui| {
-                ui.label("Monthly Principal: ");
+                ui.label("Principal: ");
                 modified |= ui
                     .add(
                         egui::DragValue::new(&mut self.principal_payment)
                             .speed(100.0)
-                            .prefix("$"),
+                            .prefix(currency),
                     )
                     .changed();
             });

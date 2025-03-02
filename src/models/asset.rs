@@ -6,7 +6,7 @@ use uuid::Uuid;
 pub trait AssetTrait {
     fn value(&self, date: NaiveDate) -> f32;
     fn name(&self) -> String;
-    fn ui_edit(&mut self, ui: &mut Ui) -> bool;
+    fn ui_edit(&mut self, ui: &mut Ui, currency: String) -> bool;
     fn uuid(&self) -> Uuid;
     fn should_delete(&self) -> bool {
         false
@@ -40,12 +40,12 @@ impl AssetTrait for Asset {
             Asset::Cash(cash) => cash.name.clone(),
         }
     }
-    fn ui_edit(&mut self, ui: &mut Ui) -> bool {
+    fn ui_edit(&mut self, ui: &mut Ui, currency: String) -> bool {
         match self {
-            Asset::RealEstate(real_estate) => real_estate.ui_edit(ui),
-            Asset::Loan(loan) => loan.ui_edit(ui),
-            Asset::Tradable(tradable) => tradable.ui_edit(ui),
-            Asset::Cash(cash) => cash.ui_edit(ui),
+            Asset::RealEstate(real_estate) => real_estate.ui_edit(ui, currency),
+            Asset::Loan(loan) => loan.ui_edit(ui, currency),
+            Asset::Tradable(tradable) => tradable.ui_edit(ui, currency),
+            Asset::Cash(cash) => cash.ui_edit(ui, currency),
         }
     }
     fn uuid(&self) -> Uuid {

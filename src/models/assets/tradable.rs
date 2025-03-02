@@ -12,6 +12,13 @@ pub enum ContributionFrequency {
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Deserialize, serde::Serialize)]
+pub struct CashoutDetails {
+    pub date: NaiveDate,
+    pub tax_rate: f32, // e.g. percentage tax (like 15 for 15%)
+    pub penalty: f32,  // fixed penalty cost
+}
+
+#[derive(Clone, Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct Tradable {
     pub uuid: Uuid,
     pub name: String,
@@ -22,6 +29,7 @@ pub struct Tradable {
     pub contribution_frequency: ContributionFrequency,
     pub should_delete: bool,
     pub color: egui::Color32,
+    pub cashout_details: Option<CashoutDetails>,
 }
 
 impl Default for Tradable {
@@ -39,6 +47,7 @@ impl Default for Tradable {
             contribution_frequency: ContributionFrequency::Monthly, // default frequency
             should_delete: false,
             color,
+            cashout_details: None,
         }
     }
 }
@@ -83,6 +92,11 @@ impl AssetTrait for Tradable {
                 self.contribution * (1.0 + rate).powf(years_since_contribution);
         }
 
+        if let Some(cashout) = &self.cashout_details {
+            if date >= cashout.date {
+                return 0.0;
+            }
+        }
         compounded_initial + compounded_contributions
     }
 
@@ -90,7 +104,7 @@ impl AssetTrait for Tradable {
         self.name.clone()
     }
 
-    fn ui_edit(&mut self, ui: &mut Ui) -> bool {
+    fn ui_edit(&mut self, ui: &mut Ui, currency: String) -> bool {
         let mut modified = false;
 
         ui.group(|ui| {
@@ -106,7 +120,7 @@ impl AssetTrait for Tradable {
                     .add(
                         egui::DragValue::new(&mut self.value)
                             .speed(1000.0)
-                            .prefix("$"),
+                            .prefix(currency.clone()),
                     )
                     .changed();
             });
@@ -130,7 +144,7 @@ impl AssetTrait for Tradable {
                     .add(
                         egui::DragValue::new(&mut self.contribution)
                             .speed(10.0)
-                            .prefix("$"),
+                            .prefix(currency),
                     )
                     .changed();
             });
